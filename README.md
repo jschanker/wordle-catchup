@@ -38,6 +38,8 @@ javascript:(function() {
     changeValue(boardStateKey, 'lastPlayedTs', yesterday);
     changeValue(boardStateKey, 'lastCompletedTs', new Date(yesterday + Math.min(lastCompletedTs - lastPlayedTs, numOfMsInDay)));
     changeValue(boardStateKey, 'solution', getWordOfTheDay(new Date(lastPlayedTs) + numOfMsInDay));
+    changeValue(boardStateKey, 'lastPlayedTs', new Date()); // set time to now
+    history.go(0); // refresh so no reset (day's solution is locked in)
     // document.querySelector('game-app').shadowRoot.querySelector('game-stats').shadowRoot.querySelector('#share-button');
     const addDayIfWin = () => {
       const inProgress = getValue(boardStateKey, 'gameStatus') === 'IN_PROGRESS';
