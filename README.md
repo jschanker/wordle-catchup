@@ -11,17 +11,17 @@ javascript:(function() {
     const date1 = new Date(d1);
     const msBetweenMidnightsLocalTime = new Date(d2).setHours(0,0,0,0) - date1.setHours(0,0,0,0);
     return Math.round(msBetweenMidnightsLocalTime / numOfMsInDay);
-  }
+  };
   const getWordOfTheDay = (dateNum) => possibleAnswers[getDayOffset(firstWordleDate, dateNum) % possibleAnswers.length];
   const getLocalStorageKeyValue = (storageKey) => JSON.parse(localStorage.getItem(storageKey));
   const getValue = (storageKey, key) => {
-    return getLocalStorageKeyValue(storageKey)[key];
+    return key != undefined ? getLocalStorageKeyValue(storageKey)[key] : getLocalStorageKeyValue(storageKey);
   };
   const changeValue = (storageKey, key, newValue) => {
     const obj = getLocalStorageKeyValue(storageKey);
     // const oldValue = obj[key];
     obj[key] = newValue;
-    localStorage.set(JSON.stringify(obj));
+    localStorage.setItem(storageKey, JSON.stringify(obj));
     // obj[key] = oldValue;
     return obj;
   };
@@ -32,11 +32,28 @@ javascript:(function() {
   const now = new Date();
   const lastPlayedTs = getValue('lastPlayedTs') || getValue(boardStateKey, 'lastPlayedTs');
   const lastCompletedTs = getValue('lastCompletedTs') || getValue(boardStateKey, 'lastCompletedTs');
+  const currentWinStreak = getValue(boardStateKey, 'currentStreak') || 0;
   if (getDayOffset(lastPlayedTs, now) > 1) {
     const yesterday = new Date(now - numOfMsInDay);
     changeValue(boardStateKey, 'lastPlayedTs', yesterday);
-    changeValue(boardStateKey, 'lastCompletedTs', yesterday + Math.min(lastCompletedTs - lastPlayedTs, numOfMsInDay));
-    changeValue(boardStateKey, 'solution', getWordOfTheDay(lastPlayedTs + numOfMsInDay));
+    changeValue(boardStateKey, 'lastCompletedTs', new Date(yesterday + Math.min(lastCompletedTs - lastPlayedTs, numOfMsInDay)));
+    changeValue(boardStateKey, 'solution', getWordOfTheDay(new Date(lastPlayedTs) + numOfMsInDay));
+    // document.querySelector('game-app').shadowRoot.querySelector('game-stats').shadowRoot.querySelector('#share-button');
+    const addDayIfWin = () => {
+      const inProgress = getValue(boardStateKey, 'gameStatus') !== 'IN_PROGRESS';
+      if (!inProgress && document.querySelector('game-app').shadowRoot.querySelector('game-stats')) {
+        const didWin = (gameStatus === 'WIN');
+        const timeElapsed = new Date(getValue(boardStateKey, 'lastCompletedTs')) - new Date(getValue(boardStateKey, 'lastPlayedTs'));
+        didWin && changeValue(boardStateKey, 'currentStreak', currentWinStreak + 1);
+        localStorage.setItem('lastPlayedTs', new Date(new Date(lastPlayedTs) + numOfMsInDay));
+        localStorage.setItem('lastCompletedTs', new Date(new Date(lastPlayedTs) + numOfMsInDay + timeElapsed));
+        changeValue(boardStateKey, 'lastPlayedTs', lastPlayedTs);
+        changeValue(boardStateKey, 'lastCompletedTs', newDate(new Date(lastPlayedTs) + timeElapsed));
+      } else {
+        requestAnimationFrame(addDayIfWin);
+      }
+    };
+    requestAnimationFrame(addDayIfWin);
   }
 })()
 ```
