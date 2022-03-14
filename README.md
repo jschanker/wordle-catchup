@@ -40,7 +40,7 @@ javascript:(function() {
     changeValue(boardStateKey, 'solution', getWordOfTheDay(new Date(lastPlayedTs) + numOfMsInDay));
     // document.querySelector('game-app').shadowRoot.querySelector('game-stats').shadowRoot.querySelector('#share-button');
     const addDayIfWin = () => {
-      const inProgress = getValue(boardStateKey, 'gameStatus') !== 'IN_PROGRESS';
+      const inProgress = getValue(boardStateKey, 'gameStatus') === 'IN_PROGRESS';
       if (!inProgress && document.querySelector('game-app').shadowRoot.querySelector('game-stats')) {
         const didWin = (gameStatus === 'WIN');
         const timeElapsed = new Date(getValue(boardStateKey, 'lastCompletedTs')) - new Date(getValue(boardStateKey, 'lastPlayedTs'));
