@@ -4,6 +4,9 @@
   "version": "1.0",
   "manifest_version": 3,
   "permissions": ["storage", "activeTab", "scripting"],
+  "host_permissions": [
+    "*://www.nytimes.com/games/wordle/"
+  ],
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
@@ -18,5 +21,8 @@
     "32": "/images/wordle_catch-up32.png",
     "48": "/images/wordle_catch-up48.png",
     "128": "/images/wordle_catch-up128.png"
+  },
+  "background": {
+    "service_worker": "catchup.js"
   }
 }
