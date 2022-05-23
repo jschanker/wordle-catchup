@@ -48,8 +48,11 @@ function loadLevel() {
       getValue('lastCompletedTs') ||
       getValue(boardStateKey, 'lastCompletedTs') ||
       firstWordleDate.getTime();
-  titleArea && (titleArea.innerText = " Wordle Catch-up # " + getDayOffset(firstWordleDate, new Date(lastPlayedTs)));
-  const currentWinStreak = getValue(boardStateKey, 'currentStreak') || 0;
+  const wordleNumber = getDayOffset(firstWordleDate, new Date(lastPlayedTs));
+  titleArea && (titleArea.innerText = " Wordle Catch-up " + wordleNumber);
+  let currentWinStreak = getValue(boardStatisticsKey, 'currentStreak') || 0;
+  let maxWinStreak = getValue(boardStatisticsKey, 'maxStreak') || 0;
+  //let currentWinStreak = getValue(boardStateKey, 'currentStreak') || 0;
   if (getDayOffset(lastPlayedTs, now) > 1) {
     const yesterday = new Date(now - numOfMsInDay);
     changeValue(boardStateKey, 'lastPlayedTs', yesterday);
@@ -63,11 +66,44 @@ function loadLevel() {
     const addDayIfWin = () => {
       const gameStatus = getValue(boardStateKey, 'gameStatus');
       const inProgress = gameStatus === 'IN_PROGRESS';
-      if (!inProgress && document.querySelector('game-app').shadowRoot.querySelector('game-stats')) {
+      const gameStatsModal = document.querySelector('game-app')?.shadowRoot?.querySelector('game-stats');
+      if (!inProgress && gameStatsModal) {
+        if (typeof navigator !== 'object' && typeof navigator.share === 'function') {
+          navigator.realShare = navigator.share.bind(navigator);
+          navigator.share = function(data) {
+            if (data.text) {
+              data.text = data.text.replace(/Wordle (\d)+/, 'Wordle Catch-up ' + wordleNumber);
+            } 
+            // console.log(data); 
+            navigator.realShare(data);
+          }
+        }
+
+        /** TODO https://github.com/jschanker/wordle-catchup/issues/1:
+        navigator.clipboard.realWriteText = navigator.clipboard.writeText.bind(navigator.clipboard);
+        navigator.clipboard.writeText = function(newClipText) {
+          navigator.clipboard.realWriteText(newClipText.replace(/Wordle (\d)+/, 'Wordle Catch-up ' + wordleNumber));
+        }
+        **/
 
         const didWin = (gameStatus === 'WIN');
+        const statisticsContainer = gameStatsModal.shadowRoot.querySelectorAll('.statistic');
+        const currentWinStreakContainer = statisticsContainer[2];
+        const maxWinStreakContainer = statisticsContainer[3];
         const timeElapsed = new Date(getValue(boardStateKey, 'lastCompletedTs')) - new Date(getValue(boardStateKey, 'lastPlayedTs'));
-        didWin && changeValue(boardStateKey, 'currentStreak', currentWinStreak + 1);
+
+        if (didWin) {
+          maxWinStreak = Math.max(++currentWinStreak, maxWinStreak);
+        } else {
+          currentWinStreak = 0;
+        }
+
+        changeValue(boardStatisticsKey, 'currentStreak', currentWinStreak);
+        changeValue(boardStatisticsKey, 'maxStreak', maxWinStreak);
+
+        currentWinStreakContainer.innerText = currentWinStreak;
+        maxWinStreakContainer.innerText = maxWinStreak;
+
         localStorage.setItem('lastPlayedTs', new Date(new Date(lastPlayedTs).valueOf() + numOfMsInDay));
         localStorage.setItem('lastCompletedTs', new Date(new Date(lastPlayedTs).valueOf() + numOfMsInDay + timeElapsed));
         changeValue(boardStateKey, 'lastPlayedTs', new Date(new Date(lastPlayedTs).valueOf() + numOfMsInDay));
