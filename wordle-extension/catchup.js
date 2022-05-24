@@ -1,16 +1,19 @@
-// When the button is clicked, load level from current page
-document.getElementById('catchupButton').addEventListener("click", async () => {
-  let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-
-  chrome.scripting.executeScript({
-    target: { tabId: tab.id },
-    function: loadLevel,
-  });
+chrome.tabs.onUpdated.addListener(async function(tabId,changeInfo,tab) {
+  let [tabA] = await chrome.tabs.query({ active: true, currentWindow: true });
+  // if has permission to this host (i.e., NYTimes Wordle page) 
+  if (tab.url) {
+    chrome.scripting.executeScript({
+      target: { tabId: tabA.id },
+      function: loadLevel,
+    });
+  }
 });
 
-
 function loadLevel() {
-  if (window.location.href !== 'https://www.nytimes.com/games/wordle/index.html') return;
+  //if (window.location.href !== 'https://www.nytimes.com/games/wordle/index.html') return;
+
+  if (!window.location.href.indexOf('www.nytimes.com/games/wordle/') === -1) return;
+  const titleArea = document.querySelector('game-app')?.shadowRoot?.querySelector('game-theme-manager')?.querySelector('.title');
 
   const firstWordleDate = new Date(2021, 5, 19, 0, 0, 0, 0);
   const numOfMsInDay = 24 * 60 * 60 * 1000;
@@ -22,7 +25,7 @@ function loadLevel() {
   const getWordOfTheDay = (dateNum) => possibleAnswers[getDayOffset(firstWordleDate, dateNum) % possibleAnswers.length];
   const getLocalStorageKeyValue = (storageKey) => JSON.parse(localStorage.getItem(storageKey));
   const getValue = (storageKey, key) => {
-    return key != undefined ? getLocalStorageKeyValue(storageKey)[key] : getLocalStorageKeyValue(storageKey);
+    return key != undefined ? getLocalStorageKeyValue(storageKey)[key] : localStorage.getItem(storageKey);
   };
   const changeValue = (storageKey, key, newValue) => {
     const obj = getLocalStorageKeyValue(storageKey);
@@ -36,32 +39,93 @@ function loadLevel() {
   const STORAGE_PREFIX = "nyt-";
   const boardStateKey = STORAGE_PREFIX + "wordle-state";
   const boardStatisticsKey = STORAGE_PREFIX + "wordle-statistics";
+  const backup_suffix = "-backup";
+
+  if (!localStorage.getItem(boardStatisticsKey + "-backup")) {
+    localStorage.setItem(boardStatisticsKey + "-backup", localStorage.getItem(boardStatisticsKey));
+  }
+
   const now = new Date();
-  const lastPlayedTs = getValue('lastPlayedTs') || getValue(boardStateKey, 'lastPlayedTs');
-  const lastCompletedTs = getValue('lastCompletedTs') || getValue(boardStateKey, 'lastCompletedTs');
-  const currentWinStreak = getValue(boardStateKey, 'currentStreak') || 0;
+  const lastPlayedTs = 
+      getValue('lastPlayedTs') || // set when catach-up is in effect
+      getValue(boardStateKey, 'lastPlayedTs') ||
+      firstWordleDate.getTime(); // never played
+  const lastCompletedTs = 
+      getValue('lastCompletedTs') ||
+      getValue(boardStateKey, 'lastCompletedTs') ||
+      firstWordleDate.getTime();
+  const wordleNumber = getDayOffset(firstWordleDate, new Date(lastPlayedTs));
+  titleArea && (titleArea.innerText = " Wordle Catch-up " + wordleNumber);
+  let currentWinStreak = getValue(boardStatisticsKey, 'currentStreak') || 0;
+  let maxWinStreak = getValue(boardStatisticsKey, 'maxStreak') || 0;
+  //let currentWinStreak = getValue(boardStateKey, 'currentStreak') || 0;
   if (getDayOffset(lastPlayedTs, now) > 1) {
     const yesterday = new Date(now - numOfMsInDay);
     changeValue(boardStateKey, 'lastPlayedTs', yesterday);
-    changeValue(boardStateKey, 'lastCompletedTs', new Date(yesterday + Math.min(lastCompletedTs - lastPlayedTs, numOfMsInDay)));
-    changeValue(boardStateKey, 'solution', getWordOfTheDay(new Date(lastPlayedTs) + numOfMsInDay));
+    changeValue(boardStateKey, 'lastCompletedTs', new Date(yesterday.valueOf() + Math.min(lastCompletedTs - lastPlayedTs, numOfMsInDay)));
+    if (getWordOfTheDay(new Date(lastPlayedTs)) !== getValue(boardStateKey, 'solution')) {
+      changeValue(boardStateKey, 'solution', getWordOfTheDay(new Date(lastPlayedTs)));
+      history.go(0); // refresh so no reset (day's solution is locked in)
+    }
     changeValue(boardStateKey, 'lastPlayedTs', new Date()); // set time to now
-    history.go(0); // refresh so no reset (day's solution is locked in)
     // document.querySelector('game-app').shadowRoot.querySelector('game-stats').shadowRoot.querySelector('#share-button');
     const addDayIfWin = () => {
-      const inProgress = getValue(boardStateKey, 'gameStatus') === 'IN_PROGRESS';
-      if (!inProgress && document.querySelector('game-app').shadowRoot.querySelector('game-stats')) {
+      const gameStatus = getValue(boardStateKey, 'gameStatus');
+      const inProgress = gameStatus === 'IN_PROGRESS';
+      const gameStatsModal = document.querySelector('game-app')?.shadowRoot?.querySelector('game-stats');
+      if (!inProgress && gameStatsModal) {
+        if (typeof navigator !== 'object' && typeof navigator.share === 'function') {
+          navigator.realShare = navigator.share.bind(navigator);
+          navigator.share = function(data) {
+            if (data.text) {
+              data.text = data.text.replace(/Wordle (\d)+/, 'Wordle Catch-up ' + wordleNumber);
+            } 
+            // console.log(data); 
+            navigator.realShare(data);
+          }
+        }
+
+        /** TODO https://github.com/jschanker/wordle-catchup/issues/1:
+        navigator.clipboard.realWriteText = navigator.clipboard.writeText.bind(navigator.clipboard);
+        navigator.clipboard.writeText = function(newClipText) {
+          navigator.clipboard.realWriteText(newClipText.replace(/Wordle (\d)+/, 'Wordle Catch-up ' + wordleNumber));
+        }
+        **/
+
         const didWin = (gameStatus === 'WIN');
+        const statisticsContainer = gameStatsModal.shadowRoot.querySelectorAll('.statistic');
+        const currentWinStreakContainer = statisticsContainer[2];
+        const maxWinStreakContainer = statisticsContainer[3];
         const timeElapsed = new Date(getValue(boardStateKey, 'lastCompletedTs')) - new Date(getValue(boardStateKey, 'lastPlayedTs'));
-        didWin && changeValue(boardStateKey, 'currentStreak', currentWinStreak + 1);
-        localStorage.setItem('lastPlayedTs', new Date(new Date(lastPlayedTs) + numOfMsInDay));
-        localStorage.setItem('lastCompletedTs', new Date(new Date(lastPlayedTs) + numOfMsInDay + timeElapsed));
-        changeValue(boardStateKey, 'lastPlayedTs', lastPlayedTs);
-        changeValue(boardStateKey, 'lastCompletedTs', newDate(new Date(lastPlayedTs) + timeElapsed));
+
+        if (didWin) {
+          maxWinStreak = Math.max(++currentWinStreak, maxWinStreak);
+        } else {
+          currentWinStreak = 0;
+        }
+
+        changeValue(boardStatisticsKey, 'currentStreak', currentWinStreak);
+        changeValue(boardStatisticsKey, 'maxStreak', maxWinStreak);
+
+        currentWinStreakContainer.innerText = currentWinStreak;
+        maxWinStreakContainer.innerText = maxWinStreak;
+
+        localStorage.setItem('lastPlayedTs', new Date(new Date(lastPlayedTs).valueOf() + numOfMsInDay));
+        localStorage.setItem('lastCompletedTs', new Date(new Date(lastPlayedTs).valueOf() + numOfMsInDay + timeElapsed));
+        changeValue(boardStateKey, 'lastPlayedTs', new Date(new Date(lastPlayedTs).valueOf() + numOfMsInDay));
+        changeValue(boardStateKey, 'lastCompletedTs', new Date(new Date(lastPlayedTs).valueOf() + numOfMsInDay + timeElapsed));
       } else {
         requestAnimationFrame(addDayIfWin);
       }
     };
     requestAnimationFrame(addDayIfWin);
+    /*
+    document.querySelector('game-app').shadowRoot
+        .querySelector('game-theme-manager').querySelector('game-keyboard')
+        .shadowRoot.querySelector('.one-and-a-half')
+        .addEventListener("click", addDayIfWin)
+
+    addDayIfWin();
+    */
   }
 }
