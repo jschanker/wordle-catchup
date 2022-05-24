@@ -56,9 +56,9 @@ function loadLevel() {
   if (getDayOffset(lastPlayedTs, now) > 1) {
     const yesterday = new Date(now - numOfMsInDay);
     changeValue(boardStateKey, 'lastPlayedTs', yesterday);
-    changeValue(boardStateKey, 'lastCompletedTs', new Date(yesterday + Math.min(lastCompletedTs - lastPlayedTs, numOfMsInDay)));
-    if (getWordOfTheDay(new Date(lastPlayedTs) + numOfMsInDay) !== getValue(boardStateKey, 'solution')) {
-      changeValue(boardStateKey, 'solution', getWordOfTheDay(new Date(lastPlayedTs) + numOfMsInDay));
+    changeValue(boardStateKey, 'lastCompletedTs', new Date(yesterday.valueOf() + Math.min(lastCompletedTs - lastPlayedTs, numOfMsInDay)));
+    if (getWordOfTheDay(new Date(lastPlayedTs)) !== getValue(boardStateKey, 'solution')) {
+      changeValue(boardStateKey, 'solution', getWordOfTheDay(new Date(lastPlayedTs)));
       history.go(0); // refresh so no reset (day's solution is locked in)
     }
     changeValue(boardStateKey, 'lastPlayedTs', new Date()); // set time to now
@@ -113,5 +113,13 @@ function loadLevel() {
       }
     };
     requestAnimationFrame(addDayIfWin);
+    /*
+    document.querySelector('game-app').shadowRoot
+        .querySelector('game-theme-manager').querySelector('game-keyboard')
+        .shadowRoot.querySelector('.one-and-a-half')
+        .addEventListener("click", addDayIfWin)
+
+    addDayIfWin();
+    */
   }
 }
