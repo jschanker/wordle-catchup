@@ -39,6 +39,12 @@ function loadLevel() {
   const STORAGE_PREFIX = "nyt-";
   const boardStateKey = STORAGE_PREFIX + "wordle-state";
   const boardStatisticsKey = STORAGE_PREFIX + "wordle-statistics";
+  const backup_suffix = "-backup";
+
+  if (!localStorage.getItem(boardStatisticsKey + "-backup")) {
+    localStorage.setItem(boardStatisticsKey + "-backup", localStorage.getItem(boardStatisticsKey));
+  }
+
   const now = new Date();
   const lastPlayedTs = 
       getValue('lastPlayedTs') || // set when catach-up is in effect
