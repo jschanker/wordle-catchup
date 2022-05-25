@@ -21,10 +21,27 @@ document.getElementById('catchupButton').addEventListener("click", async () => {
 });
 
 function updateDay(dayNum) {
-	const firstWordleDate = new Date(2021, 5, 19, 0, 0, 0, 0);
-  const numOfMsInDay = 24 * 60 * 60 * 1000;
-	const d = new Date(firstWordleDate.valueOf() + (numOfMsInDay)*dayNum);
-	localStorage.setItem('lastPlayedTs', d);
-	localStorage.setItem('lastCompletedTs', d);
+	const getLocalStorageKeyValue = (storageKey) => JSON.parse(localStorage.getItem(storageKey));
+	const changeValue = (storageKey, key, newValue) => {
+    const obj = getLocalStorageKeyValue(storageKey);
+    obj[key] = newValue;
+    localStorage.setItem(storageKey, JSON.stringify(obj));
+    return obj;
+  };
+  //changeValue('nyt-wordle-state', 'gameStatus', 'IN_PROGRESS');
+  if (getLocalStorageKeyValue('nyt-wordle-state')?.rowIndex > 0 &&
+      !confirm('Are you sure you want to reset the board and try Wordle # '
+      + dayNum + ' from the beginning?')) {
+    return;
+  }
+  changeValue('nyt-wordle-state', 'boardState', ["","","","","",""]);
+  changeValue('nyt-wordle-state', 'evaluations', [null,null,null,null,null,null]);
+  changeValue('nyt-wordle-state', 'rowIndex', 0);
+  // See: https://stackoverflow.com/a/19691491
+  const firstWordleDate = new Date(2021, 5, 19, 0, 0, 0, 0);
+	const d = new Date(firstWordleDate);
+	d.setDate(d.getDate() + parseInt(dayNum));
+	localStorage.setItem('lastPlayedTs', new Date(d));
+	localStorage.setItem('lastCompletedTs', new Date(d));
 	history.go(0);
 }
