@@ -22,10 +22,11 @@ function loadLevel() {
     const msBetweenMidnightsLocalTime = new Date(d2).setHours(0,0,0,0) - date1.setHours(0,0,0,0);
     return Math.round(msBetweenMidnightsLocalTime / numOfMsInDay);
   };
+  const getNextDay = (d1) => new Date(d1).setDate(new Date(d1).getDate() + 1);
   const getWordOfTheDay = (dateNum) => possibleAnswers[getDayOffset(firstWordleDate, dateNum) % possibleAnswers.length];
   const getLocalStorageKeyValue = (storageKey) => JSON.parse(localStorage.getItem(storageKey));
   const getValue = (storageKey, key) => {
-    return key != undefined ? getLocalStorageKeyValue(storageKey)[key] : localStorage.getItem(storageKey);
+    return key != undefined ? getLocalStorageKeyValue(storageKey)?.[key] : localStorage.getItem(storageKey);
   };
   const changeValue = (storageKey, key, newValue) => {
     const obj = getLocalStorageKeyValue(storageKey);
@@ -46,15 +47,18 @@ function loadLevel() {
   }
 
   const now = new Date();
+  const dayAfterFirstWordleDate = new Date(firstWordleDate);
+  dayAfterFirstWordleDate.setDate(firstWordleDate.getDate() + 1);
   const lastPlayedTs = 
-      getValue('lastPlayedTs') || // set when catach-up is in effect
-      getValue(boardStateKey, 'lastPlayedTs') ||
+      getValue('lastPlayedTs') || // set when catch-up is in effect
+      getValue('boardStatisticsKey') && getValue(boardStateKey, 'lastPlayedTs') ||
       firstWordleDate.getTime(); // never played
   const lastCompletedTs = 
       getValue('lastCompletedTs') ||
-      getValue(boardStateKey, 'lastCompletedTs') ||
+      getValue('boardStatisticsKey') && getValue(boardStateKey, 'lastCompletedTs') ||
       firstWordleDate.getTime();
-  const wordleNumber = getDayOffset(firstWordleDate, new Date(lastPlayedTs));
+  const wordleDate = getNextDay(lastPlayedTs);
+  const wordleNumber = getDayOffset(firstWordleDate, wordleDate);
   titleArea && (titleArea.innerText = " Wordle Catch-up " + wordleNumber);
   let currentWinStreak = getValue(boardStatisticsKey, 'currentStreak') || 0;
   let maxWinStreak = getValue(boardStatisticsKey, 'maxStreak') || 0;
@@ -63,8 +67,8 @@ function loadLevel() {
     const yesterday = new Date(now - numOfMsInDay);
     changeValue(boardStateKey, 'lastPlayedTs', yesterday);
     changeValue(boardStateKey, 'lastCompletedTs', new Date(yesterday.valueOf() + Math.min(lastCompletedTs - lastPlayedTs, numOfMsInDay)));
-    if (getWordOfTheDay(new Date(lastPlayedTs)) !== getValue(boardStateKey, 'solution')) {
-      changeValue(boardStateKey, 'solution', getWordOfTheDay(new Date(lastPlayedTs)));
+    if (getWordOfTheDay(wordleDate) !== getValue(boardStateKey, 'solution')) {
+      changeValue(boardStateKey, 'solution', getWordOfTheDay(wordleDate));
       history.go(0); // refresh so no reset (day's solution is locked in)
     }
     changeValue(boardStateKey, 'lastPlayedTs', new Date()); // set time to now
@@ -115,6 +119,9 @@ function loadLevel() {
         changeValue(boardStateKey, 'lastPlayedTs', new Date(new Date(lastPlayedTs).valueOf() + numOfMsInDay));
         changeValue(boardStateKey, 'lastCompletedTs', new Date(new Date(lastPlayedTs).valueOf() + numOfMsInDay + timeElapsed));
       } else {
+        if (getValue('nyt-wordle-state', 'rowIndex') == 0 && !inProgress) {
+          changeValue('nyt-wordle-state', 'gameStatus', 'IN_PROGRESS');
+        }
         requestAnimationFrame(addDayIfWin);
       }
     };

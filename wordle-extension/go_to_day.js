@@ -37,11 +37,13 @@ function updateDay(dayNum) {
   changeValue('nyt-wordle-state', 'boardState', ["","","","","",""]);
   changeValue('nyt-wordle-state', 'evaluations', [null,null,null,null,null,null]);
   changeValue('nyt-wordle-state', 'rowIndex', 0);
+  //localStorage.setItem('wordle-catchup-reset', true); // change gameStatus to IN_PROGRESS
+  // changeValue('nyt-wordle-state', 'gameStatus', 'IN_PROGRESS');
   // See: https://stackoverflow.com/a/19691491
   const firstWordleDate = new Date(2021, 5, 19, 0, 0, 0, 0);
 	const d = new Date(firstWordleDate);
-	d.setDate(d.getDate() + parseInt(dayNum));
-	localStorage.setItem('lastPlayedTs', new Date(d));
-	localStorage.setItem('lastCompletedTs', new Date(d));
+	d.setDate(d.getDate() + parseInt(dayNum - 1));
+	localStorage.setItem('lastPlayedTs', d);
+	localStorage.setItem('lastCompletedTs', d);
 	history.go(0);
 }
