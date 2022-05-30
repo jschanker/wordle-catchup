@@ -30,6 +30,7 @@ function updateDay(dayNum) {
   };
   //changeValue('nyt-wordle-state', 'gameStatus', 'IN_PROGRESS');
   if (getLocalStorageKeyValue('nyt-wordle-state')?.rowIndex > 0 &&
+  	  getLocalStorageKeyValue('nyt-wordle-state')?.gameStatus === 'IN_PROGRESS' &&
       !confirm('Are you sure you want to reset the board and try Wordle # '
       + dayNum + ' from the beginning?')) {
     return;
@@ -42,8 +43,8 @@ function updateDay(dayNum) {
   // See: https://stackoverflow.com/a/19691491
   const firstWordleDate = new Date(2021, 5, 19, 0, 0, 0, 0);
 	const d = new Date(firstWordleDate);
-	d.setDate(d.getDate() + parseInt(dayNum - 1));
-	localStorage.setItem('lastPlayedTs', d);
-	localStorage.setItem('lastCompletedTs', d);
+	d.setDate(d.getDate() + parseInt(dayNum) - 1);
+	localStorage.setItem('wordle-catchup-nyt-lastPlayedTs', d.getTime());
+	localStorage.setItem('wordle-catchup-nyt-lastCompletedTs', d.getTime());
 	history.go(0);
 }
